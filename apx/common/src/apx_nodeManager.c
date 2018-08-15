@@ -530,7 +530,7 @@ static void apx_nodeManager_attachLocalNodeToFileManager(apx_nodeData_t *nodeDat
 
 static void apx_nodeManager_registerEventListenerToFileManager(apx_nodeManager_t *self, apx_fileManager_t *fileManager)
 {
-   apx_eventListener_t listener;
+   apx_fileManagerEventListener_t listener;
    memset(&listener, 0, sizeof(listener));
    listener.arg = self;
    listener.fileCreate = apx_nodeManager_remoteFileCreated;
