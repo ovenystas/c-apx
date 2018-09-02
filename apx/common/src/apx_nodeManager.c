@@ -19,7 +19,7 @@
 #include "apx_nodeManager.h"
 #include "apx_fileManager.h"
 #include "apx_nodeData.h"
-#include "apx_file.h"
+#include "apx_file2.h"
 #include "apx_nodeInfo.h"
 #include "apx_router.h"
 #include "apx_logging.h" //internal logging
@@ -40,16 +40,16 @@
 //////////////////////////////////////////////////////////////////////////////
 static void apx_nodeManager_createNode(apx_nodeManager_t *self, const uint8_t *definitionBuf, int32_t definitionLen, struct apx_fileManager_tag *fileManager);
 static void apx_nodeManager_setLocalNodeData(apx_nodeManager_t *self, apx_nodeData_t *nodeData);
-static void apx_nodeManager_executePortTriggerFunction(const apx_dataTriggerFunction_t *triggerFunction, const apx_file_t *file);
+static void apx_nodeManager_executePortTriggerFunction(const apx_dataTriggerFunction_t *triggerFunction, const apx_file2_t *file);
 static void apx_nodeManager_removeRemoteNodeData(apx_nodeManager_t *self, apx_nodeData_t *nodeData);
 static void apx_nodeManager_removeNodeInfo(apx_nodeManager_t *self, apx_nodeInfo_t *nodeInfo);
 static bool apx_nodeManager_createInitData(apx_node_t *node, uint8_t *buf, int32_t bufLen);
 static void apx_nodeManager_attachLocalNodesToFileManager(apx_nodeManager_t *self, apx_fileManager_t *fileManager);
 static void apx_nodeManager_attachLocalNodeToFileManager(apx_nodeData_t *nodeData, apx_fileManager_t *fileManager);
 static void apx_nodeManager_registerEventListenerToFileManager(apx_nodeManager_t *self, apx_fileManager_t *fileManager);
-static void apx_nodeManager_remoteFileCreated(void *arg, struct apx_fileManager_tag *fileManager, apx_file_t *remoteFile);
-static void apx_nodeManager_remoteFileRevoked(void *arg, apx_fileManager_t *fileManager, apx_file_t *remotefile);
-static void apx_nodeManager_remoteFileWritten(void *arg, apx_fileManager_t *fileManager, const apx_file_t *remoteFile, uint32_t offset, int32_t length);
+static void apx_nodeManager_remoteFileCreated(void *arg, struct apx_fileManager_tag *fileManager, apx_file2_t *remoteFile);
+static void apx_nodeManager_remoteFileRevoked(void *arg, apx_fileManager_t *fileManager, apx_file2_t *remotefile);
+static void apx_nodeManager_remoteFileWritten(void *arg, apx_fileManager_t *fileManager, const apx_file2_t *remoteFile, uint32_t offset, int32_t length);
 //////////////////////////////////////////////////////////////////////////////
 // GLOBAL VARIABLES
 //////////////////////////////////////////////////////////////////////////////
@@ -177,7 +177,7 @@ void apx_nodeManager_detachFileManager(apx_nodeManager_t *self, struct apx_fileM
       adt_ary_t detachedFiles;
       adt_ary_t nodesToBeDeleted; //list of string pointers to apx_nodeData_t
 
-      adt_ary_create(&detachedFiles, apx_file_vdelete);
+      adt_ary_create(&detachedFiles, apx_file2_vdelete);
       adt_ary_create(&nodesToBeDeleted, apx_nodeData_vdelete);
 #if 0
       apx_fileManager_stop(fileManager);
@@ -186,11 +186,13 @@ void apx_nodeManager_detachFileManager(apx_nodeManager_t *self, struct apx_fileM
       numFiles = adt_ary_length(&detachedFiles);
       for (i=0; i<numFiles; i++)
       {
-         apx_file_t *file = (apx_file_t*) adt_ary_value(&detachedFiles, i);
+#if 0 //TODO: REPLACE WITH SOMETHING MORE GENERIC
+         apx_file2_t *file = (apx_file2_t*) adt_ary_value(&detachedFiles, i);
          if (file->nodeData != 0)
          {
             adt_ary_push_unique(&nodesToBeDeleted, file->nodeData);
          }
+#endif
       }
       numNodes = adt_ary_length(&nodesToBeDeleted);
       for (i = 0; i < numNodes; i++)
@@ -249,6 +251,7 @@ struct apx_nodeData_tag *apx_nodeManager_findNodeData(apx_nodeManager_t *self, c
  */
 static void apx_nodeManager_createNode(apx_nodeManager_t *self, const uint8_t *definitionBuf, int32_t definitionLen, struct apx_fileManager_tag *fileManager)
 {
+#if 0
    if( (self != 0) && (definitionBuf != 0) && (definitionLen > 0) )
    {
       int32_t numNodes;
@@ -281,7 +284,7 @@ static void apx_nodeManager_createNode(apx_nodeManager_t *self, const uint8_t *d
             apx_nodeData_t *nodeData=0;
             char fileName[RMF_MAX_FILE_NAME];
             char *p;
-            int32_t inPortDataLen;
+            //int32_t inPortDataLen;
             int32_t outPortDataLen;
 
 
@@ -302,7 +305,7 @@ static void apx_nodeManager_createNode(apx_nodeManager_t *self, const uint8_t *d
             //if node has output data, search a file called "<node_name>.out"
             if (outPortDataLen > 0)
             {
-               apx_file_t *outDataFile = 0;
+               apx_file2_t *outDataFile = 0;
                strcpy(fileName,apxNode->name);
                p=fileName+strlen(fileName);
                strcpy(p,".out");
@@ -318,6 +321,7 @@ static void apx_nodeManager_createNode(apx_nodeManager_t *self, const uint8_t *d
                   }
                   else
                   {
+#if 0 //TODO: REPLACE WITH SOMETHING MORE GENERIC
                      if (outDataFile->nodeData==0)
                      {
                         outDataFile->nodeData=nodeData;
@@ -327,6 +331,7 @@ static void apx_nodeManager_createNode(apx_nodeManager_t *self, const uint8_t *d
                         nodeData->outPortDirtyFlags = (uint8_t*) malloc(outPortDataLen);
                         assert(nodeData->outPortDirtyFlags);
                         nodeData->outPortDataLen = outPortDataLen;
+#endif
 #if 0
                         APX_LOG_INFO("[APX_NODE_MANAGER]%s Server opening client file %s[%d,%d]", debugInfoStr, fileName, outDataFile->fileInfo.address, outDataFile->fileInfo.length);
 #endif
@@ -342,10 +347,11 @@ static void apx_nodeManager_createNode(apx_nodeManager_t *self, const uint8_t *d
                   APX_LOG_WARNING("[APX_NODE_MANAGER] '%s': no file found", fileName);
                }
             }
+#if 0
             if (inPortDataLen > 0)
             {
                //create local inPortData file
-               apx_file_t *inDataFile;
+               apx_file2_t *inDataFile;
                bool result;
                strcpy(fileName,apxNode->name);
                p=fileName+strlen(fileName);
@@ -375,6 +381,7 @@ static void apx_nodeManager_createNode(apx_nodeManager_t *self, const uint8_t *d
                   APX_LOG_ERROR("[APX_NODE_MANAGER]%s Server failed to create local file '%s'", debugInfoStr, fileName);
 #endif
                }
+#endif
             }
             //router is set, attach the newly create nodeInfo to the router
             if (self->router != 0)
@@ -387,6 +394,7 @@ static void apx_nodeManager_createNode(apx_nodeManager_t *self, const uint8_t *d
       }
       apx_parser_clearNodes(&self->parser);
    }
+#endif
 }
 
 /**
@@ -403,8 +411,9 @@ static void apx_nodeManager_setLocalNodeData(apx_nodeManager_t *self, apx_nodeDa
 /**
  * applies the portTriggerFunction
  */
-static void apx_nodeManager_executePortTriggerFunction(const apx_dataTriggerFunction_t *triggerFunction, const apx_file_t *file)
+static void apx_nodeManager_executePortTriggerFunction(const apx_dataTriggerFunction_t *triggerFunction, const apx_file2_t *file)
 {
+#if 0
    if( (triggerFunction != 0) && (file != 0) )
    {
       if (file->fileType == APX_OUTDATA_FILE)
@@ -437,6 +446,7 @@ static void apx_nodeManager_executePortTriggerFunction(const apx_dataTriggerFunc
          }
       }
    }
+#endif
 }
 
 
@@ -509,9 +519,10 @@ static void apx_nodeManager_attachLocalNodesToFileManager(apx_nodeManager_t *sel
 
 static void apx_nodeManager_attachLocalNodeToFileManager(apx_nodeData_t *nodeData, apx_fileManager_t *fileManager)
 {
+#if 0
    if (nodeData->definitionDataLen > 0)
    {
-      apx_file_t *definitionFile = apx_file_newLocalDefinitionFile(nodeData);
+      apx_file2_t *definitionFile = apx_file_newLocalDefinitionFile(nodeData);
       if (definitionFile != 0)
       {
          apx_fileManager_attachLocalFile(fileManager, definitionFile);
@@ -519,17 +530,19 @@ static void apx_nodeManager_attachLocalNodeToFileManager(apx_nodeData_t *nodeDat
    }
    if (nodeData->outPortDataLen > 0)
    {
-      apx_file_t *outPortDataFile = apx_file_newLocalOutPortDataFile(nodeData);
+      apx_file2_t *outPortDataFile = apx_file_newLocalOutPortDataFile(nodeData);
       if (outPortDataFile != 0)
       {
          apx_nodeData_setOutPortDataFile(nodeData, outPortDataFile);
          apx_fileManager_attachLocalFile(fileManager, outPortDataFile);
       }
    }
+#endif
 }
 
 static void apx_nodeManager_registerEventListenerToFileManager(apx_nodeManager_t *self, apx_fileManager_t *fileManager)
 {
+#if 0
    apx_fileManagerEventListener_t listener;
    memset(&listener, 0, sizeof(listener));
    listener.arg = self;
@@ -537,11 +550,13 @@ static void apx_nodeManager_registerEventListenerToFileManager(apx_nodeManager_t
    listener.fileRevoke = apx_nodeManager_remoteFileRevoked;
    listener.fileWrite = apx_nodeManager_remoteFileWritten;
    apx_fileManager_registerEventListener(fileManager, &listener);
+#endif
 }
 
 
-static void apx_nodeManager_remoteFileCreated(void *arg, struct apx_fileManager_tag *fileManager, apx_file_t *remoteFile)
+static void apx_nodeManager_remoteFileCreated(void *arg, struct apx_fileManager_tag *fileManager, apx_file2_t *remoteFile)
 {
+#if 0
    apx_nodeManager_t *self = (apx_nodeManager_t *) arg;
    if ( (self != 0) && (fileManager != 0) && (remoteFile != 0) && (remoteFile->isRemoteFile == true))
    {
@@ -581,7 +596,7 @@ static void apx_nodeManager_remoteFileCreated(void *arg, struct apx_fileManager_
 #if 0
                         apx_fileManager_sendFileOpen(fileManager, remoteFile->fileInfo.address);
 #endif
-                        //the following line binds our new nodeData object to the apx_file_t structure
+                        //the following line binds our new nodeData object to the apx_file2_t structure
                         remoteFile->nodeData=nodeData;
                      }
                   }
@@ -650,13 +665,14 @@ static void apx_nodeManager_remoteFileCreated(void *arg, struct apx_fileManager_
 
       }
    }
+#endif
 }
 
 
 /**
  * this is caled by fileManager when a file has been removed
  */
-static void apx_nodeManager_remoteFileRevoked(void *arg, struct apx_fileManager_tag *fileManager, apx_file_t *remotefile)
+static void apx_nodeManager_remoteFileRevoked(void *arg, struct apx_fileManager_tag *fileManager, apx_file2_t *remotefile)
 {
    //printf("apx_nodeManager_remotefileRemoved\n");
 }
@@ -664,8 +680,9 @@ static void apx_nodeManager_remoteFileRevoked(void *arg, struct apx_fileManager_
 /**
  * this is called by fileManager when a file has been written to
  */
-static void apx_nodeManager_remoteFileWritten(void *arg, struct apx_fileManager_tag *fileManager, const apx_file_t *remoteFile, uint32_t offset, int32_t length)
+static void apx_nodeManager_remoteFileWritten(void *arg, struct apx_fileManager_tag *fileManager, const apx_file2_t *remoteFile, uint32_t offset, int32_t length)
 {
+#if 0
    apx_nodeManager_t *self = (apx_nodeManager_t *) arg;
    if ( (self != 0) && (remoteFile != 0) )
    {
@@ -708,5 +725,6 @@ static void apx_nodeManager_remoteFileWritten(void *arg, struct apx_fileManager_
          }
       }
    }
+#endif
 }
 
