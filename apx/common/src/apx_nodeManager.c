@@ -67,21 +67,9 @@ void apx_nodeManager_create(apx_nodeManager_t *self)
 {
    if (self != 0)
    {
-      apx_istream_handler_t apx_istream_handler;
       adt_hash_create(&self->nodeInfoMap, apx_nodeInfo_vdelete);
-      apx_parser_create(&self->parser);
-      memset(&apx_istream_handler,0,sizeof(apx_istream_handler));
       self->router = (apx_router_t*) 0;
       self->debugMode = APX_DEBUG_NONE;
-      apx_istream_handler.arg = &self->parser;
-      apx_istream_handler.open = apx_parser_vopen;
-      apx_istream_handler.close = apx_parser_vclose;
-      apx_istream_handler.node = apx_parser_vnode;
-      apx_istream_handler.datatype = apx_parser_vdatatype;
-      apx_istream_handler.provide = apx_parser_vprovide;
-      apx_istream_handler.require = apx_parser_vrequire;
-      apx_istream_handler.node_end = apx_parser_vnode_end;
-      apx_istream_create(&self->apx_istream,&apx_istream_handler);
       adt_hash_create(&self->remoteNodeDataMap, apx_nodeData_vdelete);
       adt_hash_create(&self->localNodeDataMap, (void(*)(void*)) 0);
       MUTEX_INIT(self->mutex);
@@ -92,9 +80,8 @@ void apx_nodeManager_destroy(apx_nodeManager_t *self)
 {
    if(self != 0)
    {
-      apx_parser_destroy(&self->parser);
       adt_hash_destroy(&self->nodeInfoMap);
-      apx_istream_destroy(&self->apx_istream);
+
       adt_hash_destroy(&self->remoteNodeDataMap);
       adt_hash_destroy(&self->localNodeDataMap);
       MUTEX_DESTROY(self->mutex);
